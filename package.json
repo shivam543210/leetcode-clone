@@ -1,0 +1,42 @@
+{
+  "name": "leetcode-clone",
+  "version": "1.0.0",
+  "description": "Enterprise-scale coding platform like LeetCode with AI assistance",
+  "main": "index.js",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend/services/*",
+    "backend/shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api-gateway\" \"npm run docker:up\"",
+    "dev:api-gateway": "cd backend/services/api-gateway && npm run dev",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "test:api": "curl http://localhost:5000/health",
+    "setup:backend": "cd backend/services/api-gateway && npm install"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.0",
+    "concurrently": "^8.2.0",
+    "eslint": "^8.47.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.1.6"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "http-proxy-middleware": "^3.0.5",
+    "install": "^0.13.0",
+    "morgan": "^1.10.1",
+    "npm": "^11.5.2"
+  }
+}

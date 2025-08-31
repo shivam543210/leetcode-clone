@@ -1,0 +1,15 @@
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(24) NOT NULL,
+    plan_type VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_analytics (
+    id BIGSERIAL PRIMARY KEY,
+    user_id VARCHAR(24) NOT NULL,
+    event_type VARCHAR(50) NOT NULL,
+    event_data JSONB DEFAULT '{}',
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
