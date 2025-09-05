@@ -164,8 +164,8 @@ const UserSchema = new mongoose.Schema({
   // OAuth Information
   oauthProvider: {
     type: String,
-    enum: ['google', 'github', 'linkedin'],
-    default: null
+    enum: ['google', 'github', 'linkedin','local'],
+    default: 'local'
   },
   oauthId: {
     type: String,
