@@ -3,30 +3,38 @@ const router = express.Router();
 const authController = require('../controllers/authController');
 const passwordController = require('../controllers/passwordController');
 const authenticateToken = require('../middleware/authenticateToken');
-const validators = require('../utils/validators');
 const oauthController = require('../controllers/oauthController');
 const userController = require('../controllers/userController');
 const { authorizeRole, requireSubscription, verifyOwnership } = require('../middleware/authorizeRole');
 
+// Import new validation middleware
+const { 
+  handleValidationErrors, 
+  authValidators, 
+  profileValidators 
+} = require('../../../../shared/middleware/validation');
+
 // Registration
 router.post(
   '/register', 
-  validators.registerValidation, 
-  validators.handleValidationErrors, 
+  authValidators.register, 
+  handleValidationErrors, 
   authController.register
 );
 
 // Login
 router.post(
   '/login',
-  validators.loginValidation,
-  validators.handleValidationErrors,
+  authValidators.login,
+  handleValidationErrors,
   authController.login
 );
 
 // Refresh token
 router.post(
   '/refresh',
+  authValidators.refreshToken,
+  handleValidationErrors,
   authController.refreshToken
 );
 
@@ -40,6 +48,8 @@ router.post(
 // Email Verification
 router.post(
   '/verify-email',
+  authValidators.verifyEmail,
+  handleValidationErrors,
   authController.verifyEmail
 );
 
@@ -53,21 +63,23 @@ router.get(
 // Password management routes
 router.post(
   '/forgot-password',
-  validators.passwordResetValidation,
-  validators.handleValidationErrors,
+  authValidators.forgotPassword,
+  handleValidationErrors,
   passwordController.requestReset
 );
 
 router.post(
   '/reset-password',
+  authValidators.resetPassword,
+  handleValidationErrors,
   passwordController.reset
 );
 
 router.post(
   '/change-password',
   authenticateToken,
-  validators.changePasswordValidation,
-  validators.handleValidationErrors,
+  authValidators.changePassword,
+  handleValidationErrors,
   passwordController.change
 );
 
@@ -80,8 +92,8 @@ router.get('/oauth/linkedin/callback', oauthController.linkedinCallback);
 
 // User profile routes
 router.get('/profile', authenticateToken, userController.getProfile);
-router.put('/profile', authenticateToken, validators.profileUpdateValidation, validators.handleValidationErrors, userController.updateProfile);
-router.put('/preferences', authenticateToken, userController.updatePreferences);
+router.put('/profile', authenticateToken, profileValidators.updateProfile, handleValidationErrors, userController.updateProfile);
+router.put('/preferences', authenticateToken, profileValidators.updatePreferences, handleValidationErrors, userController.updatePreferences);
 router.get('/statistics', authenticateToken, userController.getStatistics);
 router.delete('/account', authenticateToken, userController.deleteAccount);
 

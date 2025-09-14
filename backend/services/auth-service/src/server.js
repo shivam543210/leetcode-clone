@@ -6,82 +6,79 @@ const helmet = require('helmet');
 const config = require('../../../shared/config');
 const authRoutes = require('./routes/auth');
 
+// Import shared middleware
+const { globalErrorHandler, notFoundHandler, asyncHandler } = require('../../../shared/middleware/errorHandler');
+const { requestLogger, performanceLogger, securityLogger } = require('../../../shared/middleware/logger');
+const { responseMiddleware } = require('../../../shared/utils/responseFormatter');
+const { sanitizeInput } = require('../../../shared/middleware/validation');
+
 const app = express();
 const PORT = 5100; // Different port for auth service
 
-// Middleware
+// Security middleware
 app.use(helmet());
 app.use(cors(config.security.cors));
-app.use(express.json());
 
-// Proxy authentication requests to auth service
-app.use('/api/auth', createProxyMiddleware({
-  target: 'http://localhost:5100',
-  changeOrigin: true,
-  pathRewrite: {
-    '^/api/auth': '/api/auth'
-  },
-  onError: (err, req, res) => {
-    console.error('Auth service proxy error:', err.message);
-    res.status(503).json({
-      success: false,
-      message: 'Authentication service unavailable'
+// Request parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Custom middleware
+app.use(sanitizeInput);
+app.use(responseMiddleware);
+app.use(requestLogger('auth-service'));
+app.use(performanceLogger('auth-service'));
+app.use(securityLogger('auth-service'));
+
+// Connect to MongoDB
+const connectDB = async () => {
+  try {
+    await mongoose.connect(config.database.mongodb.uri, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
     });
-  },
-  onProxyReq: (proxyReq, req) => {
-    // Forward original headers
-    proxyReq.setHeader('X-Forwarded-For', req.ip);
-    proxyReq.setHeader('X-Original-Host', req.get('host'));
+    console.log('📦 MongoDB connected successfully');
+  } catch (error) {
+    console.error('❌ MongoDB connection failed:', error.message);
+    process.exit(1);
   }
-}));
+};
 
-// Health check for API Gateway
+// Routes
+app.use('/api/auth', authRoutes);
+
+// Health check
 app.get('/health', (req, res) => {
-  res.json({
+  res.success({
     status: 'healthy',
-    timestamp: new Date().toISOString(),
-    service: 'api-gateway',
+    service: 'auth-service',
     version: config.app.version,
-    environment: config.app.env
-  });
+    environment: config.app.env,
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  }, 'Auth service is healthy');
 });
 
-// Global health check for all services
-app.get('/health/all', async (req, res) => {
-  const services = [
-    { name: 'auth-service', url: 'http://localhost:5100/health' },
-    // Add other services here
-  ];
-
-  const healthChecks = await Promise.allSettled(
-    services.map(async (service) => {
-      try {
-        const response = await fetch(service.url);
-        const data = await response.json();
-        return { name: service.name, status: 'healthy', data };
-      } catch (error) {
-        return { name: service.name, status: 'unhealthy', error: error.message };
-      }
-    })
-  );
-
-  const allHealthy = healthChecks.every(check => 
-    check.status === 'fulfilled' && check.value.status === 'healthy'
-  );
-
-  res.status(allHealthy ? 200 : 503).json({
-    status: allHealthy ? 'healthy' : 'degraded',
-    timestamp: new Date().toISOString(),
-    services: healthChecks.map(check => check.value)
-  });
-});
+// Error handling middleware (must be last)
+app.use(notFoundHandler);
+app.use(globalErrorHandler);
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 API Gateway running on http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`🌐 All services health: http://localhost:${PORT}/health/all`);
-  console.log(`🔑 Auth endpoints: http://localhost:${PORT}/api/auth/*`);
-});
+const startServer = async () => {
+  try {
+    await connectDB();
+    
+    app.listen(PORT, () => {
+      console.log(`🚀 Auth Service running on http://localhost:${PORT}`);
+      console.log(`📊 Health check: http://localhost:${PORT}/health`);
+      console.log(`🔑 Auth endpoints: http://localhost:${PORT}/api/auth/*`);
+      console.log(`🌍 Environment: ${config.app.env}`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to start auth service:', error.message);
+    process.exit(1);
+  }
+};
+
+startServer();
 
 module.exports = app;
